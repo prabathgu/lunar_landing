@@ -1,11 +1,28 @@
 
-const cards =      ['Constellation_Map', 'Dehydrated_Milk',
-                    'First_Aid_Kit', 'Food_Concentrate',
-                    'Life_Raft', 'Magnetic_Compass',
-                    'Matches', 'Nylon_Rope',
-                    'Oxygen', 'Parachute_Silk',
-                    'Portable_Heating_Unit', 'Signal_Flare',
-                    'Two-Way_Radio', 'Water']
+const cards =  ['Constellation_Map', 'Dehydrated_Milk',
+                'First_Aid_Kit', 'Food_Concentrate',
+                'Life_Raft', 'Magnetic_Compass',
+                'Matches', 'Nylon_Rope',
+                'Oxygen', 'Parachute_Silk',
+                'Portable_Heating_Unit', 'Signal_Flare',
+                'Two-Way_Radio', 'Water']
+
+const nasaRankings = {
+    'Oxygen' : 0,
+    'Water' : 1,
+    'Constellation_Map' : 2,
+    'Food_Concentrate' : 3,
+    'Two-Way_Radio' : 4,
+    'Nylon_Rope' : 5,
+    'First_Aid_Kit' : 6,
+    'Parachute_Silk' : 7,
+    'Life_Raft' : 8,
+    'Signal_Flare' : 9,
+    'Dehydrated_Milk' : 10,
+    'Portable_Heating_Unit' : 11,
+    'Magnetic_Compass' : 12,
+    'Matches' : 13
+}
 
 var selected // The currently selected piece
 var rotator // The rotation widget
@@ -19,14 +36,14 @@ class Title extends Phaser.Scene {
     }
 
     preload () {
-        this.load.image('title', 'title.png')
+        this.load.image('title', 'assets/title.png')
     }
 
     create() {
         let { width, height } = this.sys.game.canvas
         this.add.image(width/2, height/2, 'title')
 
-        new Bubble(this, width / 2 - 150, height / 2 + 150, '  Click to Begin  ', 
+        new Bubble(this, width / 2 - 150, height / 2 + 200, '  Click to Begin  ', 
             { fontSize: 40 }).setCallback(() => {
                 this.scene.start('game')
             })
@@ -102,7 +119,7 @@ class Game extends Phaser.Scene {
             }
 
             // bring the cards up in 3 seconds
-            let timer = this.time.delayedCall(1000 + index * 300, 
+            let timer = this.time.delayedCall(1000 + index * 150, 
                 function(image) {
                     image.setVisible(true)
                     this.children.bringToTop(image)
@@ -167,12 +184,12 @@ class Game extends Phaser.Scene {
     doTally() {
         let rankings = {}
         console.log('Moon clicked')
+        let tally = 0
         this.sprites.forEach(sprite => {
             let key = sprite.texture.key
             if (key.endsWith('_front')) {
                 key = key.replace('_front','')
             }
-            console.log(key, sprite.x, sprite.y)
 
             let index = -1
             let minDist = 99999
@@ -190,8 +207,29 @@ class Game extends Phaser.Scene {
                 showCardsPlacingError()
                 return
             }
+
+            console.log(index, nasaRankings[key])
+            tally += Math.abs(index - nasaRankings[key])
         })
         console.log(rankings)
+        console.log(tally)
+
+        let text = ''
+        if (tally <= 25) {
+            text = 'Excellent - You and your crew demonstrated great survival skills!'
+        } else if (tally <= 32) {
+            text = 'Great - Above average skills. You made it!'
+        } else if (tally <= 45) {
+            text = 'Good - It was a struggle, but you made it back to base.'
+        } else if (tally <= 55) {
+            text = 'Average - At least you’re still alive, but you barely survived!'
+        } else if (tally <= 70) {
+            text = 'Poor - Sadly, not everyone made it back to base.'
+        } else {
+            text = 'Tragic - Oh dear, your bodies lie lifeless on the surface of the moon!'
+        }
+
+        let bubble = new Bubble(this, 400, 400, text)
     }
 
     showCardsPlacingError() {
@@ -212,7 +250,7 @@ let config = {
         height: 900
     },
     backgroundColor: '#FFFFFF',
-    scene: [Game]
+    scene: [Title, Game]
 }
 
 let game = new Phaser.Game(config)
