@@ -25,10 +25,14 @@ const nasaRankings = {
 }
 
 var selected // The currently selected piece
-var rotator // The rotation widget
 
 var isMoving // Set to true when a piece is moved
 var isBackgroundClick // Set to true when user clicks on the clear background
+
+var isPopup // Set to true when there is a pop-up
+var popup // The current popup
+var popupX, popupY // the current popup original location
+var inTransit // Set to true when the popup tween is playing
 
 class Title extends Phaser.Scene {
     constructor() {
@@ -73,7 +77,14 @@ class Game extends Phaser.Scene {
 
         this.moon = this.add.sprite(width - 200, height - 120,'moon')
         
-        let x = 50, y = 150
+        let textSettings = {
+            color : colors.gray,
+            fontSize : 45,
+            fontFamily : 'Helvetica Neue'
+        }
+        this.add.text(50, 0, 'Move the cards around to place them in the order of importance', textSettings)
+        
+        let x = 50, y = 170
         let index = 1
         this.centers = []
         this.sprites = []
@@ -89,37 +100,68 @@ class Game extends Phaser.Scene {
             this.sprites.push(image)
             this.centers.push([x, y])
 
-            this.drawPlaceHolder(index, x, y)
+            this.drawPlaceHolder(index, x, y, image.width, image.height)
 
             image.on('pointerover',function(pointer){
-                image.tint = 0.5 * 0xffffff
+                if (isPopup) {
+                    if (image != popup) {
+                        image.tint = 0.5 * 0xffffff
+                    }
+                } else {
+                    image.tint = 0.5 * 0xffffff
+                }
             })
-            image.on('pointerout',function(pointer){
+            image.on('pointerout', function(pointer) {
                 image.tint = 0xffffff
             })
-            image.on('pointerdown',function(pointer){
-                if (selected && selected!=image) {
-                    selected.tint = 0xffffff
+
+            image.on('pointerdown', function(pointer, localX, localY, event) {
+                if (!inTransit && popup != image) {
+                    if (selected && selected!=image) {
+                        selected.tint = 0xffffff
+                    }
+                    selected = image
+                    selected.tint = 0.5 * 0xffffff
+                    this.children.bringToTop(selected)
                 }
-                selected = image
-                selected.tint = 0.5 * 0xffffff
-                this.children.bringToTop(selected)
                 isMoving = false
                 isBackgroundClick = false
-                selected.setTexture(card)
             }, this)
-            image.on('pointerup',function(pointer){
+
+            image.on('pointerup', function(pointer, localX, localY, event) {
                 isBackgroundClick = false
+                if (!isMoving && popup != image && !inTransit) {
+                    image.tint = 0xffffff
+                    inTransit = true
+                    popupX = image.x
+                    popupY = image.y
+                    isPopup = true
+                    popup = image
+                    let tween = this.tweens.add({
+                        targets: image,
+                        x: width/2,
+                        y: height/2,
+                        scale: 2.5,
+                        duration: 1000,
+                        ease: 'Elastic',
+                        easeParams: [ 3, 3 ]
+                    })
+                    tween.on('complete', function(tween, targets) {
+                        inTransit = false
+                    }, this);
+                    image.setTexture(card)
+                }
+                event.stopPropagation()
             }, this)
 
             x += image.displayWidth/2 + 30
             if (x >= width - 200) {
-                y += 200
+                y += 205
                 x = 50
             }
 
             // bring the cards up in 3 seconds
-            let timer = this.time.delayedCall(1000 + index * 150, 
+            let timer = this.time.delayedCall(1000 + index * 150,
                 function(image) {
                     image.setVisible(true)
                     this.children.bringToTop(image)
@@ -133,22 +175,24 @@ class Game extends Phaser.Scene {
         this.input.dragDistanceThreshold = 16
 
         this.input.on('dragstart', function (pointer, gameObject) {
-            if (gameObject != rotator) {
-                isMoving = true
-            }
-        })
+            isMoving = true
+        }, this)
 
         this.input.on('drag', function (pointer, gameObject, dragX, dragY) {
             gameObject.x = dragX
             gameObject.y = dragY
-        })
+        }, this)
 
         this.input.on('dragend', function (pointer, gameObject) {
-        })
+        }, this)
 
-        this.input.on('pointerdown', function(pointer){
+        this.input.on('pointerdown', function(pointer) {
             isBackgroundClick = true
-        })
+            if (isPopup && !inTransit) {
+                this.hidePopup()
+            }
+        }, this)
+
         this.input.on('pointerup', function(pointer){
             if (isBackgroundClick) {
                 if (selected) {
@@ -156,34 +200,57 @@ class Game extends Phaser.Scene {
                     selected = null
                 }
             }
-        })
+        }, this)
 
         isMoving = false
         isBackgroundClick = false
 
         this.moon.setInteractive().on('pointerdown', () => this.doTally())
-        console.log(this.centers)
     }
 
-    drawPlaceHolder(index, x, y) {
+    hidePopup() {
+        inTransit = true
+        let tween = this.tweens.add({
+            targets: popup,
+            x: popupX,
+            y: popupY,
+            scale: 1,
+            duration: 700,
+            ease: 'Cubic',
+            easeParams: [ 3, 3 ]
+        })
+
+        let key = popup.texture.key
+        if (!key.endsWith('_front')) {
+            key = key + '_front'
+        }
+        popup.setTexture(key)
+        tween.on('complete', function(tween, targets){
+            inTransit = false
+        }, this)
+        isPopup = false
+        popup = null
+    }
+
+    drawPlaceHolder(index, x, y, width, height) {
+        let pad = 10
         let graphics = this.add.graphics()
         graphics.fillStyle(Phaser.Display.Color.ValueToColor(colors.white).color, 1)
         graphics.lineStyle(4, Phaser.Display.Color.ValueToColor(colors.gray).color, 10)
-        graphics.strokeCircle(x, y, 50)
+        graphics.strokeRoundedRect(x - width/2 + pad, y - height/2 + pad, width - pad*2, height - pad*2, 16)
         let textSettings = {
             color : colors.gray,
-            fontSize : 50,
+            fontSize : 30,
             fontFamily : 'Helvetica Neue'
         }
         let text = this.add.text(x, y, index.toString(), textSettings)
         let bounds = text.getBounds()
         text.x = x - text.width / 2
-        text.y = y - text.height / 2
+        text.y = y - height/2 - text.height + 5
     }
 
     doTally() {
         let rankings = {}
-        console.log('Moon clicked')
         let tally = 0
         this.sprites.forEach(sprite => {
             let key = sprite.texture.key
@@ -208,11 +275,8 @@ class Game extends Phaser.Scene {
                 return
             }
 
-            console.log(index, nasaRankings[key])
             tally += Math.abs(index - nasaRankings[key])
         })
-        console.log(rankings)
-        console.log(tally)
 
         let text = ''
         if (tally <= 25) {
@@ -229,7 +293,7 @@ class Game extends Phaser.Scene {
             text = 'Tragic - Oh dear, your bodies lie lifeless on the surface of the moon!'
         }
 
-        let bubble = new Bubble(this, 400, 400, text)
+        let bubble = new Bubble(this, 300, 400, text)
     }
 
     showCardsPlacingError() {
