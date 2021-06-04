@@ -85,4 +85,15 @@ class Bubble extends Phaser.GameObjects.Container {
     setText(str) {
         this.bubbleText.setText(str)
     }
+
+    destroyOnClick() {
+        this.enable()
+        this.shape.on('pointerdown', (pointer, localX, localY, event) => {
+            event.stopPropagation()
+        })
+        this.shape.on('pointerup', (pointer, localX, localY, event) => {
+            event.stopPropagation()
+            this.destroy()
+        })
+    }
 }

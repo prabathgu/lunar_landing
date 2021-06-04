@@ -250,8 +250,10 @@ class Game extends Phaser.Scene {
     }
 
     doTally() {
-        let rankings = {}
+        let usedIndex = new Map()
         let tally = 0
+        let errors = false
+
         this.sprites.forEach(sprite => {
             let key = sprite.texture.key
             if (key.endsWith('_front')) {
@@ -269,36 +271,45 @@ class Game extends Phaser.Scene {
             }
 
             if (index > -1) {
-                rankings[key] = index
+                if (usedIndex.has(index)) {
+                    // two cards are overlapping each other too closely
+                    errors = true
+                } else {
+                    usedIndex.set(index, key)
+                }
             } else {
-                showCardsPlacingError()
-                return
+                errors = true
             }
 
             tally += Math.abs(index - nasaRankings[key])
         })
 
-        let text = ''
-        if (tally <= 25) {
-            text = 'Excellent - You and your crew demonstrated great survival skills!'
-        } else if (tally <= 32) {
-            text = 'Great - Above average skills. You made it!'
-        } else if (tally <= 45) {
-            text = 'Good - It was a struggle, but you made it back to base.'
-        } else if (tally <= 55) {
-            text = 'Average - At least you’re still alive, but you barely survived!'
-        } else if (tally <= 70) {
-            text = 'Poor - Sadly, not everyone made it back to base.'
+        if (errors) {
+            this.showCardsPlacingError()
         } else {
-            text = 'Tragic - Oh dear, your bodies lie lifeless on the surface of the moon!'
+            let text = ''
+            if (tally <= 25) {
+                text = 'Excellent - You and your crew demonstrated great survival skills!'
+            } else if (tally <= 32) {
+                text = 'Great - Above average skills. You made it!'
+            } else if (tally <= 45) {
+                text = 'Good - It was a struggle, but you made it back to base.'
+            } else if (tally <= 55) {
+                text = 'Average - At least you’re still alive, but you barely survived!'
+            } else if (tally <= 70) {
+                text = 'Poor - Sadly, not everyone made it back to base.'
+            } else {
+                text = 'Tragic - Oh dear, your bodies lie lifeless on the surface of the moon!'
+            }
+    
+            let bubble = new Bubble(this, 300, 400, text)
+            bubble.destroyOnClick()
         }
-
-        let bubble = new Bubble(this, 300, 400, text)
     }
 
     showCardsPlacingError() {
         // Show 3 second message
-        let bubble = new Bubble(this, 400, 400, ' Cards not placed properly! ')
+        let bubble = new Bubble(this, 500, 400, ' Cards not placed properly! ')
         let timer = this.time.delayedCall(3000, 
             function(bubble) {
                 bubble.destroy()
