@@ -20,7 +20,7 @@ class Bubble extends Phaser.GameObjects.Container {
 
         let textSettings = {
             color : _textSettings.color ?? colors.blue,
-            fontSize : _textSettings.fontSize ?? 30,
+            fontSize : _textSettings.fontSize ?? 40,
             fontFamily : _textSettings.fontFamily ?? 'Helvetica Neue'
         }
         let padX = _textSettings.padX ?? (_textSettings.pad ?? 20)

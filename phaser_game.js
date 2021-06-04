@@ -302,7 +302,8 @@ class Game extends Phaser.Scene {
                 text = 'Tragic - Oh dear, your bodies lie lifeless on the surface of the moon!'
             }
     
-            let bubble = new Bubble(this, 300, 400, text)
+            let bubble = new Bubble(this, 170, 400, text)
+            bubble.x = this.sys.game.canvas.width / 2 - bubble.shape.width / 2
             bubble.destroyOnClick()
         }
     }
