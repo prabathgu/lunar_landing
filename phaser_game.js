@@ -60,12 +60,15 @@ class Game extends Phaser.Scene {
     sprites // The sprites array
     moon // The moon sprite
 
+    tallyContainer // Container for all Tally card related display objects
+
     constructor() {
         super('game')
     }
 
     preload () {
         this.load.image('moon', 'assets/moon.png')
+        this.load.image('rank_table', 'assets/rank_table.png')
         cards.forEach(card => {
             this.load.image(card + '_front', 'assets/Lunar_Landing_Cards_R3_' + card + '.jpg')
             this.load.image(card, 'assets/Lunar_Landing_Cards_wDescription_R3_' + card + '.jpg')
@@ -161,7 +164,7 @@ class Game extends Phaser.Scene {
             }
 
             // bring the cards up in 3 seconds
-            let timer = this.time.delayedCall(1000 + index * 150,
+            let timer = this.time.delayedCall(10, // 1000 + index * 150,
                 function(image) {
                     image.setVisible(true)
                     this.children.bringToTop(image)
@@ -250,7 +253,13 @@ class Game extends Phaser.Scene {
     }
 
     doTally() {
+        if (this.tallyContainer && this.tallyContainer.visible) {
+            // Tally Container is visible, return
+            return
+        }
+
         let usedIndex = new Map()
+        let userRank = new Map()
         let tally = 0
         let errors = false
 
@@ -276,6 +285,7 @@ class Game extends Phaser.Scene {
                     errors = true
                 } else {
                     usedIndex.set(index, key)
+                    userRank.set(key, index)
                 }
             } else {
                 errors = true
@@ -302,9 +312,54 @@ class Game extends Phaser.Scene {
                 text = 'Tragic - Oh dear, your bodies lie lifeless on the surface of the moon!'
             }
     
+            const scale = 1
+            const { width, height } = this.sys.game.canvas
+
+            let tallyCard = this.add.image(0, 0, 'rank_table').setOrigin(0,0).setScale(scale)
+            this.tallyContainer = this.add.container(width/2 - tallyCard.displayWidth/2, height/2 - tallyCard.displayHeight/2)
+            this.tallyContainer.add(tallyCard)
+
+            const border = this.add.rectangle(0, 0, tallyCard.displayWidth, tallyCard.displayHeight).setOrigin(0, 0)
+            border.setStrokeStyle(2, Phaser.Display.Color.ValueToColor(colors.black).color)
+            this.tallyContainer.add(border)
+    
+            const xLeft = 720 // Center of the left column
+            const xRight = 860 // Center of the right column
+            const yTop = 185 // Center of the topmost row
+            const yStep = 35 // Gap between row centers
+    
+            const textSettings = { fontFamily: 'Helvetica Neue', fontSize: 20, color: colors.black, align: 'center' }
+    
+            const originX = width/2 - tallyCard.displayWidth/2
+            const originY = height/2 - tallyCard.displayHeight/2
+    
+            let total = 0
+            for (const key in nasaRankings) {
+                const y = yTop + yStep * nasaRankings[key]
+                
+                const rankStr = (userRank.get(key) + 1).toString() // Add 1 because our internal representation starts at 0
+                const rankText = this.add.text(xLeft * scale, y * scale, rankStr, textSettings).setOrigin(0.5, 0.6)
+                this.tallyContainer.add(rankText)
+            
+                const score = Math.abs(nasaRankings[key] - userRank.get(key))
+                const scoreStr = score.toString()
+                const scoreText = this.add.text(xRight * scale, y * scale, scoreStr, textSettings).setOrigin(0.5, 0.6)
+                this.tallyContainer.add(scoreText)
+                
+                total += score
+            }
+            const totalStr = total.toString()
+            const totalText = this.add.text(xRight * scale, (yTop + yStep * 14) * scale, totalStr, textSettings).setOrigin(0.5, 0.6)
+            this.tallyContainer.add(totalText)
+    
             let bubble = new Bubble(this, 170, 400, text)
-            bubble.x = this.sys.game.canvas.width / 2 - bubble.shape.width / 2
-            bubble.destroyOnClick()
+            bubble.x = tallyCard.displayWidth/2 - bubble.shape.width/2
+            bubble.y = tallyCard.displayHeight - 100
+            this.tallyContainer.add(bubble)
+
+            bubble.setCallback(() => {
+                this.tallyContainer.destroy()
+            })
         }
     }
 
@@ -326,7 +381,7 @@ let config = {
         height: 900
     },
     backgroundColor: '#FFFFFF',
-    scene: [Title, Game]
+    scene: [Game]
 }
 
 let game = new Phaser.Game(config)
