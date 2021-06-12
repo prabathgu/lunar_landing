@@ -164,7 +164,7 @@ class Game extends Phaser.Scene {
             }
 
             // bring the cards up in 3 seconds
-            let timer = this.time.delayedCall(10, // 1000 + index * 150,
+            let timer = this.time.delayedCall(300 + index * 150,
                 function(image) {
                     image.setVisible(true)
                     this.children.bringToTop(image)
@@ -381,7 +381,7 @@ let config = {
         height: 900
     },
     backgroundColor: '#FFFFFF',
-    scene: [Game]
+    scene: [Title, Game]
 }
 
 let game = new Phaser.Game(config)
